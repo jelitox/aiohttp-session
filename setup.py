@@ -16,7 +16,7 @@ def read(f):
 
 install_requires = ['aiohttp>=3.0.1', 'typing_extensions>=3.7.4; python_version<"3.8"']
 extras_require = {
-    'aioredis': ['aioredis>=1.0.0'],
+    'aioredis': ['aioredis>=2.0.0'],
     'aiomcache': ['aiomcache>=0.5.2'],
     'pycrypto': ['cryptography'],
     'secure': ['cryptography'],
@@ -45,7 +45,7 @@ setup(name='aiohttp-session',
       url='https://github.com/aio-libs/aiohttp_session/',
       license='Apache 2',
       packages=['aiohttp_session'],
-      python_requires=">=3.5",
+      python_requires=">=3.8",
       install_requires=install_requires,
       include_package_data=True,
       extras_require=extras_require)
