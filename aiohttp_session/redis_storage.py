@@ -39,7 +39,7 @@ class RedisStorage(AbstractStorage):
         if StrictVersion(aioredis.__version__).version < (1, 0):
             raise RuntimeError("aioredis<1.0 is not supported")
         self._key_factory = key_factory
-        if isinstance(redis_pool, aioredis.ConnectionsPool):
+        if isinstance(redis_pool, aioredis.ConnectionPool):
             self._redis = aioredis.Redis(connection_pool=redis_pool)
         self._redis = redis_pool
 
