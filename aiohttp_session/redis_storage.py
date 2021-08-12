@@ -1,7 +1,6 @@
 import asyncio
 import json
 import uuid
-import warnings
 from distutils.version import StrictVersion
 from typing import Any, Callable, Optional
 
@@ -12,7 +11,7 @@ from . import AbstractStorage, Session
 try:
     import aioredis
 except ImportError:  # pragma: no cover
-    aioredis = None
+    aioredis = None  # type: ignore[assignment]
 
 
 class RedisStorage(AbstractStorage):
