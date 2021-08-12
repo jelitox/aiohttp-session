@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 import warnings
@@ -36,30 +37,37 @@ class RedisStorage(AbstractStorage):
                          encoder=encoder, decoder=decoder)
         if aioredis is None:
             raise RuntimeError("Please install aioredis")
-        if StrictVersion(aioredis.__version__).version < (1, 0):
-            raise RuntimeError("aioredis<1.0 is not supported")
+        if StrictVersion(aioredis.__version__).version < (2, 0):
+            raise RuntimeError("aioredis<2.0 is not supported")
         self._key_factory = key_factory
         if isinstance(redis_pool, aioredis.ConnectionPool):
             self._redis = aioredis.Redis(connection_pool=redis_pool)
-        self._redis = redis_pool
+        else:
+            self._redis = redis_pool
+
+    def __del__(self):
+        asyncio.run(self._redis.close())
 
     async def load_session(self, request: web.Request) -> Session:
         cookie = self.load_cookie(request)
         if cookie is None:
             return Session(None, data=None, new=True, max_age=self.max_age)
         else:
-            with await self._redis as conn:
-                key = str(cookie)
-                data = await conn.get(self.cookie_name + '_' + key)
-                if data is None:
-                    return Session(None, data=None,
-                                   new=True, max_age=self.max_age)
-                data = data.decode('utf-8')
-                try:
-                    data = self._decoder(data)
-                except ValueError:
-                    data = None
-                return Session(key, data=data, new=False, max_age=self.max_age)
+            try:
+                async with await self._redis as conn:
+                    key = str(cookie)
+                    data = await conn.get(self.cookie_name + '_' + key)
+                    if data is None:
+                        return Session(None, data=None,
+                                       new=True, max_age=self.max_age)
+                    try:
+                        data = self._decoder(data)
+                    except ValueError:
+                        data = None
+                    return Session(key, data=data,
+                                   new=False, max_age=self.max_age)
+            except Exception as err:
+                raise
 
     async def save_session(
         self,
@@ -82,7 +90,14 @@ class RedisStorage(AbstractStorage):
                                  max_age=session.max_age)
 
         data = self._encoder(self._get_session_data(session))
-        with await self._redis as conn:
-            max_age = session.max_age
-            expire = max_age if max_age is not None else 0
-            await conn.set(self.cookie_name + '_' + key, data, expire=expire)
+        try:
+            async with await self._redis as conn:
+                max_age = session.max_age
+                expire = max_age if max_age is not None else 0
+                await conn.setex(
+                    self.cookie_name + '_' + key,
+                    expire,
+                    data
+                )
+        except Exception as err:
+            raise

@@ -105,7 +105,7 @@ def redis_server(  # type: ignore[misc]  # No docker types.
     for _i in range(20):
         try:
             conn = loop.run_until_complete(
-                aioredis.create_connection((host, port), loop=loop)
+                aioredis.Redis(host, port, loop=loop)
             )
             loop.run_until_complete(conn.execute('SET', 'foo', 'bar'))
             break
