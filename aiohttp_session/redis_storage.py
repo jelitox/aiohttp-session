@@ -17,9 +17,9 @@ except ImportError:  # pragma: no cover
 class RedisStorage(AbstractStorage):
     """Redis storage"""
 
-    def __init__(  # type: ignore[no-any-unimported]  # TODO: aioredis
+    def __init__(
         self,
-        redis_pool: 'aioredis.ConnectionPool', *,
+        redis_pool: "aioredis.Redis", *,
         cookie_name: str = "AIOHTTP_SESSION",
         domain: Optional[str] = None,
         max_age: Optional[int] = None,
@@ -41,8 +41,10 @@ class RedisStorage(AbstractStorage):
         self._key_factory = key_factory
         if isinstance(redis_pool, aioredis.ConnectionPool):
             self._redis = aioredis.Redis(connection_pool=redis_pool)
-        else:
+        elif isinstance(redis_pool, aioredis.Redis):
             self._redis = redis_pool
+        else:
+            raise TypeError("Expected aioredis.Redis got {}".format(type(redis_pool)))
 
     def __del__(self):
         asyncio.run(self._redis.close())
@@ -89,14 +91,4 @@ class RedisStorage(AbstractStorage):
                                  max_age=session.max_age)
 
         data = self._encoder(self._get_session_data(session))
-        try:
-            async with await self._redis as conn:
-                max_age = session.max_age
-                expire = max_age if max_age is not None else 0
-                await conn.setex(
-                    self.cookie_name + '_' + key,
-                    expire,
-                    data
-                )
-        except Exception as err:
-            raise
+        await self._redis.set(self.cookie_name + '_' + key, data, ex=session.max_age)  # type: ignore[arg-type] # noqa: B950
